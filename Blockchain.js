@@ -33,8 +33,6 @@ class Blockchain {
       return callback('bad_hash');
     if (this.difficulty != newBlock.difficulty)
       return callback('bad_difficulty');
-    console.log(newBlock.hash.substring(0, this.difficulty));
-    console.log("Expected difficulty:", "0".repeat(this.difficulty))
     if (newBlock.hash.substring(0, this.difficulty) !== "0".repeat(this.difficulty))
       return callback('bad_block');
 
