@@ -67,8 +67,14 @@ class PeerNetwork {
       }
     }
   }
-  broadcast(){
+  broadcast(data){
+    const stringData = JSON.stringify(data);
 
+     this.sockets.forEach((socket) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(stringified);
+      }
+  });
   }
 }
 
