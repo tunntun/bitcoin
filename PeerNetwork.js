@@ -1,10 +1,12 @@
 const cli = require('nodemon/lib/cli');
+const crypto = require('crypto');
 const WebSocket = require('ws');
+
 
 class PeerNetwork {
   constructor(blockchain, port){
     this.blockchain = blockchain;
-    this.sockets = [];
+    this.sockets = []; //the ws servers that I have a connection.
     this.port = port;
   }
   startServer() {
@@ -31,12 +33,42 @@ class PeerNetwork {
     this.sockets.push(ws);
 
     ws.on('message', (message) => {
-      console.log(message.toString());
+      const data = JSON.parse(message.toString());
+      this.handleMessages(ws, data);
     });
     ws.on('close', ()=> {
       console.log(`peer disconnected: ${ws}`)
       this.sockets = this.sockets.filter(s => s !== ws);
     });
+  }
+  handleMessages(ws, data){
+    if(data.type == 'BLOCKCHAIN')
+      this.handleBlockchain(data.chain);
+    if(data.type == 'BLOCK')
+      this.handleNewBlock(data.block);
+  }
+
+  handleBlockchain(recievedChain) {
+    if(recievedChain.length > this.blockchain.chain.length)
+      this.blockchain.chain = recievedChain;
+  }
+
+  handleNewBlock(newBlock){
+    const latestBlock = this.blockchain.chain[this.blockchain.chain.lenght -1]
+    if(newBlock.index == latestBlock.index){
+      if(newBlock.previousHash == latestBlock.hash){
+        const data = newBlock.index + newBlock.timestamp + newBlock.transactionSet + newBlock.previousHash + newBlock.salt + newBlock.difficulty;
+        const newBlockHash = crypto.createHash('sha256').update(data).digest('hex');
+        if(newBlock.hash == newBlockHash){
+          this.blockchain.chain.push(newBlock);
+
+          this.broadcast({ type: 'BLOCK', block: newBlock });
+        }
+      }
+    }
+  }
+  broadcast(){
+
   }
 }
 
