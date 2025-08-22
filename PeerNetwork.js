@@ -8,6 +8,7 @@ class PeerNetwork {
     this.blockchain = blockchain;
     this.sockets = []; //the ws servers that I have a connection.
     this.port = port;
+    this.seenBlocks = new Set();
   }
   startServer() {
     const server = new WebSocket.Server({ port: this.port });
@@ -32,22 +33,46 @@ class PeerNetwork {
   initSocket(ws){
     this.sockets.push(ws);
 
+    ws.send(JSON.stringify( { type: 'HELLO', port: this.port  } ));
+
     ws.on('message', (message) => {
       const data = JSON.parse(message.toString());
       this.handleMessages(ws, data);
     });
     ws.on('close', ()=> {
-      console.log(`peer disconnected: ${ws}`)
       this.sockets = this.sockets.filter(s => s !== ws);
+      console.log(`[${this.port}] peer disconnected. Current peers: ${this.sockets.length}`);
     });
   }
+  _send(ws, msg) {
+  try {
+    if (ws.readyState === WebSocket.OPEN) {
+      // attach who we are so peers can identify the sender
+      const payload = { ...msg, from: this.port };
+      ws.send(JSON.stringify(payload));
+      console.log(`[${this.port}] SENT ${msg.type} to ${ws.peerPort || 'peer'}`);
+    } else {
+      console.log(`[${this.port}] tried to send to a closed socket`);
+    }
+  } catch (err) {
+    console.error(`[${this.port}] error sending ${msg.type}:`, err.message);
+  }
+}
+
+
   handleMessages(ws, data){
-    if(data.type == 'SEND_CHAIN'){
-      this.handleBlockchain(data.chain);
+    if (data.type === "HELLO") {
+      ws.peerPort = data.port;
+      ws.send(JSON.stringify({ type: 'GET_BLOCKCHAIN' }));
+      console.log(`[${this.port}] HELLO from peer ${ws.peerPort}`);
+    }
+
+    if(data.type == 'SEND_BLOCKCHAIN'){
+      this.blockchain.replaceChain(data.blockchain);
     }
 
     if(this.type == 'GET_BLOCKCHAIN') {
-      this._send(ws, {  type: 'SEND_BLOCKCHAIN', chain: this.blockchain  });
+      this._send(ws, {  type: 'SEND_BLOCKCHAIN', blockchain: this.blockchain  });
     }
 
     if(data.type == 'BLOCK'){
@@ -56,29 +81,24 @@ class PeerNetwork {
   }
 
   handleBlockchain(recievedBlockchain) {
-    if (!this.isValidChain(recievedBlockchain))
+    if (!recievedBlockchain.isValidChain())
       return false;
     if(recievedBlockchain.chain.length <= this.blockchain.chain.length)
       return false;
 
     this.blockchain = recievedBlockchain;
-  }
+    console.log("***************************");
+    console.log(this.blockchain.chain);
+    console.log("***************************");
 
-  isValidChain(blockchain) {
-    if(JSON.stringify(blockchain.chain[0]) !== this.createGenesisBlock())
-      return false;
-
-    for (let i = 1; i < chain.length; i++) {
-    const prev = chain[i-1];
-    const curr = chain[i];
-    if (curr.previousHash !== prev.hash) return false;
-    if (!curr.hash.startsWith('0'.repeat(curr.difficulty))) return false;
-    }
-    return true;
   }
 
   handleNewBlock(newBlock){
-    // TODO: buraya seen hash parametresi ekle ki sonsuza kadar echo yapmayalım
+    if (this.seenBlocks.has(newBlock.hash)) {
+      return;
+    }
+    this.seenBlocks.add(newBlock.hash);
+
     const latestBlock = this.blockchain.chain[this.blockchain.chain.length -1]
 
     if(newBlock.index >= latestBlock.index + 1 && newBlock.previousHash == latestBlock.hash){
@@ -87,10 +107,12 @@ class PeerNetwork {
       if(newBlock.hash == newBlockHash){
         this.blockchain.chain.push(newBlock);
         this.broadcast({ type: 'BLOCK', block: newBlock });
+        console.log(JSON.stringify(this.blockchain.chain));
       }
     }
     else if(newBlock.index > latestBlock + 1){
       this._send(ws, { type: 'GET_BLOCKCHAIN'})
+
     }
   }
 

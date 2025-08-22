@@ -25,6 +25,32 @@ class Blockchain {
     return this.chain[this.chain.length - 1];
   }
 
+  isValidChain(blockchain) {
+    if(JSON.stringify(blockchain.chain[0]) !== this.createGenesisBlock())
+      return false;
+
+    for (let i = 1; i < chain.length; i++) {
+    const prev = chain[i-1];
+    const curr = chain[i];
+    if (curr.previousHash !== prev.hash) return false;
+    if (!curr.hash.startsWith('0'.repeat(curr.difficulty))) return false;
+    }
+    return true;
+  }
+
+  replaceChain(newChain) {
+    if(!Array.isArray(newChain) || newChain.length === 0)
+      return false;
+    if(!this.isValidChain(newChain))
+      return false;
+    if(newChain.length <= this.chain.length)
+      return false;
+
+    this.chain = newChain;
+    return true;
+  }
+
+
   async addBlock(newBlock) {
     const lastBlock = this.getLatestBlock();
     const expectedIndex = lastBlock.index + 1;
