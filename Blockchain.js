@@ -1,13 +1,18 @@
 const Block = require('./Block.js');
 const crypto = require('crypto');
 
-const EXPECTED_TIME = 5 * 60 * 1000; // 5 minutes
+const EXPECTED_TIME = 1 * 60 * 1000; // 5 minutes
 const DIFFICULTY_ADJUSTMENT_COUNT = 5;
 
 class Blockchain {
   constructor() {
-    this.difficulty = 5;
+    this.difficulty = 4;
     this.chain = [this.createGenesisBlock()];
+
+    this.blocksByHash = new Map();
+    this.blocksByHash.set(this.chain[0].hash, this.chain[0]);
+
+    this.bestWork = 1;
   }
 
   createGenesisBlock() {
@@ -21,38 +26,39 @@ class Blockchain {
   }
 
   async addBlock(newBlock) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const lastBlock = this.getLatestBlock();
-        const index = lastBlock.index + 1;
-        const previousHash = lastBlock.hash;
+    const lastBlock = this.getLatestBlock();
+    const expectedIndex = lastBlock.index + 1;
+    const expectedPrev  = lastBlock.hash;
 
-        if (index !== newBlock.index)
-          return reject(new Error('bad_index'));
-        if (previousHash !== newBlock.previousHash)
-          return reject(new Error('bad_previousHash'));
+    if (newBlock.index !== expectedIndex) throw new Error('bad_index');
+    if (newBlock.previousHash !== expectedPrev) throw new Error('bad_previousHash');
+    if (Number.isNaN(Number(newBlock.difficulty))) throw new Error('bad_difficulty');
 
-        const minedHash = await newBlock.mineBlock();
+    const minedHash = await newBlock.mineBlock();
+    if (typeof minedHash !== 'string') throw new Error('hash_not_string');
 
-        if (this.difficulty !== newBlock.difficulty)
-          return reject(new Error('bad_difficulty'));
-        if (minedHash.substring(0, this.difficulty) !== "0".repeat(this.difficulty))
-          return reject(new Error('bad_block'));
+    if (!minedHash.startsWith('0'.repeat(this.difficulty))) throw new Error('bad_block');
 
-        if (index % DIFFICULTY_ADJUSTMENT_COUNT === 0) {
-          const actualTime = lastBlock.timestamp -  this.chain[this.chain.length - DIFFICULTY_ADJUSTMENT_COUNT].timestamp;
-
-          if (actualTime > EXPECTED_TIME) this.difficulty--;
-          else if (actualTime < EXPECTED_TIME) this.difficulty++;
-        }
-
-        this.chain.push(newBlock);
-        resolve(newBlock);
-      } catch (err) {
-        reject(err);
+    if (DIFFICULTY_ADJUSTMENT_COUNT > 0 && expectedIndex % DIFFICULTY_ADJUSTMENT_COUNT === 0) {
+      const fromIdx = this.chain.length - DIFFICULTY_ADJUSTMENT_COUNT;
+      if (fromIdx >= 0) {
+        const actualTime = lastBlock.timestamp - this.chain[fromIdx].timestamp;
+        if (actualTime > EXPECTED_TIME)
+          this.difficulty = Math.max(1, this.difficulty - 1);
+        else if (actualTime < EXPECTED_TIME)
+          this.difficulty = this.difficulty + 1;
       }
-    });
-  }
+    }
+
+    this.chain.push(newBlock);
+    if (this.blocksByHash) this.blocksByHash.set(newBlock.hash, newBlock);
+    this.bestWork = (this.bestWork || 0) + 1;
+
+    console.log('new block content');
+    console.log(newBlock);
+
+    return newBlock;
+  };
 }
 
 module.exports = Blockchain;

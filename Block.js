@@ -47,8 +47,8 @@ class Block {
         do {
           this.salt = crypto.randomBytes(16).toString('hex');
           hash = await this.calculateHash();
+          if (typeof hash !== 'string') throw new Error('hash_not_string');
         } while (hash.substring(0, this.difficulty) !== '0'.repeat(this.difficulty));
-
         this.hash = hash;
         resolve(this.hash);
       } catch (err) {

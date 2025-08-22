@@ -42,37 +42,64 @@ class PeerNetwork {
     });
   }
   handleMessages(ws, data){
-    if(data.type == 'BLOCKCHAIN')
+    if(data.type == 'SEND_CHAIN'){
       this.handleBlockchain(data.chain);
-    if(data.type == 'BLOCK')
+    }
+
+    if(this.type == 'GET_BLOCKCHAIN') {
+      this._send(ws, {  type: 'SEND_BLOCKCHAIN', chain: this.blockchain  });
+    }
+
+    if(data.type == 'BLOCK'){
       this.handleNewBlock(data.block);
+    }
   }
 
-  handleBlockchain(recievedChain) {
-    if(recievedChain.length > this.blockchain.chain.length)
-      this.blockchain.chain = recievedChain;
+  handleBlockchain(recievedBlockchain) {
+    if (!this.isValidChain(recievedBlockchain))
+      return false;
+    if(recievedBlockchain.chain.length <= this.blockchain.chain.length)
+      return false;
+
+    this.blockchain = recievedBlockchain;
+  }
+
+  isValidChain(blockchain) {
+    if(JSON.stringify(blockchain.chain[0]) !== this.createGenesisBlock())
+      return false;
+
+    for (let i = 1; i < chain.length; i++) {
+    const prev = chain[i-1];
+    const curr = chain[i];
+    if (curr.previousHash !== prev.hash) return false;
+    if (!curr.hash.startsWith('0'.repeat(curr.difficulty))) return false;
+    }
+    return true;
   }
 
   handleNewBlock(newBlock){
-    const latestBlock = this.blockchain.chain[this.blockchain.chain.lenght -1]
-    if(newBlock.index == latestBlock.index){
-      if(newBlock.previousHash == latestBlock.hash){
-        const data = newBlock.index + newBlock.timestamp + newBlock.transactionSet + newBlock.previousHash + newBlock.salt + newBlock.difficulty;
-        const newBlockHash = crypto.createHash('sha256').update(data).digest('hex');
-        if(newBlock.hash == newBlockHash){
-          this.blockchain.chain.push(newBlock);
+    // TODO: buraya seen hash parametresi ekle ki sonsuza kadar echo yapmayalım
+    const latestBlock = this.blockchain.chain[this.blockchain.chain.length -1]
 
-          this.broadcast({ type: 'BLOCK', block: newBlock });
-        }
+    if(newBlock.index >= latestBlock.index + 1 && newBlock.previousHash == latestBlock.hash){
+      const data = newBlock.index + newBlock.timestamp +  JSON.stringify(newBlock.transactionSet) + newBlock.previousHash + newBlock.salt + newBlock.difficulty;
+      const newBlockHash = crypto.createHash('sha256').update(data).digest('hex');
+      if(newBlock.hash == newBlockHash){
+        this.blockchain.chain.push(newBlock);
+        this.broadcast({ type: 'BLOCK', block: newBlock });
       }
     }
+    else if(newBlock.index > latestBlock + 1){
+      this._send(ws, { type: 'GET_BLOCKCHAIN'})
+    }
   }
+
   broadcast(data){
     const stringData = JSON.stringify(data);
 
      this.sockets.forEach((socket) => {
       if (socket.readyState === WebSocket.OPEN) {
-        socket.send(stringified);
+        socket.send(stringData);
       }
   });
   }
