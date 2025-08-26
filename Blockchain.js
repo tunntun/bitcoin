@@ -56,6 +56,8 @@ class Blockchain {
       return false;
 
     this.chain = newChain;
+    console.log("------------------------")
+    console.log(JSON.stringify(this.chain));
     return true;
   }
 

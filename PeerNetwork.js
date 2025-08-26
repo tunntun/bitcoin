@@ -80,6 +80,7 @@ class PeerNetwork {
 
     if(data.type == 'SEND_BLOCKCHAIN'){
       this.blockchain.replaceChain(data.blockchain);
+
       this.isSynced = true;
     }
 
@@ -101,7 +102,7 @@ class PeerNetwork {
 
     this.blockchain = recievedBlockchain;
     // console.log("***************************");
-    // console.log(this.blockchain.chain);
+    console.log(this.blockchain.chain);
     // console.log("***************************");
 
   }
