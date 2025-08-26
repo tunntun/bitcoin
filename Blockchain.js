@@ -22,32 +22,19 @@ class Blockchain {
   }
 
   getLatestBlock() {
-    console.log("getLatestBlock")
-    console.log(this.chain.length);
+
     return this.chain[this.chain.length - 1];
   }
 
   isValidChain(chain) {
     const expectedGenesis = this.createGenesisBlock();
-    console.log("isvalid-------------0")
-    console.log(expectedGenesis)
-    console.log(expectedGenesis.index);
-    console.log(chain[0].index);
+
     if(chain[0].index !== expectedGenesis.index)
       return false;
-    console.log("isvalid-------------1")
-    console.log(chain[0].transactionSet);
-    console.log(expectedGenesis.transactionSet);
-    console.log(chain[0].transactionSet !== expectedGenesis.transactionSet);
     if(chain[0].transactionSet.length !== expectedGenesis.transactionSet.length)
       return false;
-    console.log("isvalid-------------2")
-
     if(chain[0].previousHash !== expectedGenesis.previousHash)
       return false;
-    console.log("isvalid-------------3")
-
-
     if(chain[0].difficulty !== expectedGenesis.difficulty)
       return false;
 
@@ -61,18 +48,12 @@ class Blockchain {
   }
 
   replaceChain(newChain) {
-    console.log("0********************************");
-    console.log(typeof(newChain));
     if(!Array.isArray(this.chain) || newChain.length === 0)
       return false;
-    console.log("1********************************");
     if(!this.isValidChain(newChain))
       return false;
-    console.log("2********************************");
     if(newChain.length <= this.chain.length)
       return false;
-    console.log("3*********************************");
-
 
     this.chain = newChain;
     return true;
@@ -107,9 +88,6 @@ class Blockchain {
     this.chain.push(newBlock);
     if (this.blocksByHash) this.blocksByHash.set(newBlock.hash, newBlock);
     this.bestWork = (this.bestWork || 0) + 1;
-
-    console.log('new block content');
-    console.log(newBlock);
 
     return newBlock;
   };

@@ -25,7 +25,6 @@ class PeerNetwork {
     client.on('open', () => {
       console.log(`Connected to peer: ${peerUrl}`);
       this.initSocket(client);
-      console.log(this.sockets);
     });
     client.on('error', (err) => {
       console.log('connection_error');
@@ -101,9 +100,9 @@ class PeerNetwork {
       return false;
 
     this.blockchain = recievedBlockchain;
-    console.log("***************************");
-    console.log(this.blockchain.chain);
-    console.log("***************************");
+    // console.log("***************************");
+    // console.log(this.blockchain.chain);
+    // console.log("***************************");
 
   }
 
