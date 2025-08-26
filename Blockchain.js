@@ -22,29 +22,57 @@ class Blockchain {
   }
 
   getLatestBlock() {
+    console.log("getLatestBlock")
+    console.log(this.chain.length);
     return this.chain[this.chain.length - 1];
   }
 
-  isValidChain(blockchain) {
-    if(JSON.stringify(blockchain.chain[0]) !== this.createGenesisBlock())
+  isValidChain(chain) {
+    const expectedGenesis = this.createGenesisBlock();
+    console.log("isvalid-------------0")
+    console.log(expectedGenesis)
+    console.log(expectedGenesis.index);
+    console.log(chain[0].index);
+    if(chain[0].index !== expectedGenesis.index)
+      return false;
+    console.log("isvalid-------------1")
+    console.log(chain[0].transactionSet);
+    console.log(expectedGenesis.transactionSet);
+    console.log(chain[0].transactionSet !== expectedGenesis.transactionSet);
+    if(chain[0].transactionSet.length !== expectedGenesis.transactionSet.length)
+      return false;
+    console.log("isvalid-------------2")
+
+    if(chain[0].previousHash !== expectedGenesis.previousHash)
+      return false;
+    console.log("isvalid-------------3")
+
+
+    if(chain[0].difficulty !== expectedGenesis.difficulty)
       return false;
 
     for (let i = 1; i < chain.length; i++) {
     const prev = chain[i-1];
-    const curr = chain[i];
-    if (curr.previousHash !== prev.hash) return false;
-    if (!curr.hash.startsWith('0'.repeat(curr.difficulty))) return false;
+    const current = chain[i];
+    if (current.previousHash !== prev.hash) return false;
+    if (!current.hash.startsWith('0'.repeat(current.difficulty))) return false;
     }
     return true;
   }
 
   replaceChain(newChain) {
-    if(!Array.isArray(newChain) || newChain.length === 0)
+    console.log("0********************************");
+    console.log(typeof(newChain));
+    if(!Array.isArray(this.chain) || newChain.length === 0)
       return false;
+    console.log("1********************************");
     if(!this.isValidChain(newChain))
       return false;
+    console.log("2********************************");
     if(newChain.length <= this.chain.length)
       return false;
+    console.log("3*********************************");
+
 
     this.chain = newChain;
     return true;

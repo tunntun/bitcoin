@@ -9,6 +9,7 @@ class PeerNetwork {
     this.sockets = []; //the ws servers that I have a connection.
     this.port = port;
     this.seenBlocks = new Set();
+    this.isSynced = false;
   }
   startServer() {
     const server = new WebSocket.Server({ port: this.port });
@@ -24,6 +25,7 @@ class PeerNetwork {
     client.on('open', () => {
       console.log(`Connected to peer: ${peerUrl}`);
       this.initSocket(client);
+      console.log(this.sockets);
     });
     client.on('error', (err) => {
       console.log('connection_error');
@@ -44,6 +46,7 @@ class PeerNetwork {
       console.log(`[${this.port}] peer disconnected. Current peers: ${this.sockets.length}`);
     });
   }
+
   _send(ws, msg) {
   try {
     if (ws.readyState === WebSocket.OPEN) {
@@ -59,24 +62,35 @@ class PeerNetwork {
   }
 }
 
-
+  waitUntilReady(timeoutMs = 2000) {
+    return new Promise((resolve) => {
+      const check = () => this.isSynced ? resolve(true) : setTimeout(check, 50);
+      setTimeout(() => {
+        if (!this.isSynced) this.isSynced = true;
+      }, timeoutMs);
+      check();
+    });
+  }
   handleMessages(ws, data){
     if (data.type === "HELLO") {
       ws.peerPort = data.port;
       ws.send(JSON.stringify({ type: 'GET_BLOCKCHAIN' }));
       console.log(`[${this.port}] HELLO from peer ${ws.peerPort}`);
+      setTimeout(() => { if (!this.isSynced) this.isSynced = true; }, 1500);
     }
 
     if(data.type == 'SEND_BLOCKCHAIN'){
       this.blockchain.replaceChain(data.blockchain);
+      this.isSynced = true;
     }
 
-    if(this.type == 'GET_BLOCKCHAIN') {
-      this._send(ws, {  type: 'SEND_BLOCKCHAIN', blockchain: this.blockchain  });
+    if(data.type == 'GET_BLOCKCHAIN') {
+      this._send(ws, {  type: 'SEND_BLOCKCHAIN', blockchain: this.blockchain.chain });
+      this.isSynced = true;
     }
 
     if(data.type == 'BLOCK'){
-      this.handleNewBlock(data.block);
+      this.handleNewBlock(ws, data.block);
     }
   }
 
@@ -93,7 +107,7 @@ class PeerNetwork {
 
   }
 
-  handleNewBlock(newBlock){
+  handleNewBlock(ws, newBlock){
     if (this.seenBlocks.has(newBlock.hash)) {
       return;
     }
@@ -110,7 +124,7 @@ class PeerNetwork {
         console.log(JSON.stringify(this.blockchain.chain));
       }
     }
-    else if(newBlock.index > latestBlock + 1){
+    else if(newBlock.index > latestBlock.index + 1){
       this._send(ws, { type: 'GET_BLOCKCHAIN'})
 
     }
